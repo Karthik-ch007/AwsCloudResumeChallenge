@@ -1,53 +1,32 @@
-import boto3
 import json
-import os
-
-dynamodb = boto3.resource('dynamodb')
-ddbTableName = os.environ['databaseName']
-
-table = dynamodb.Table(ddbTableName)
-
+import boto3
+from decimal import Decimal
 
 def lambda_handler(event, context):
-    try:
-        dynamodbResponse = table.update_item(
-                Key={
-                    'id': 'visitor_count'
-                },
-                UpdateExpression='SET visitors = visitors + :val1',
-                ExpressionAttributeValues={
-                    ':val1': 1
-                },
-                ReturnValues='UPDATED_NEW'
-            )
-            
-        responseBody = json.dumps({"count":int(dynamodbResponse['Attributes']['visitors'])})
-
-    except:
-        putItem = table.put_item(
-            Item = {
-                'id': 'visitor_count',
-                'visitors': 1
-            }
-        )
-
-        dynamodbResponse = table.get_item(
-            Key = {
-                'id': 'visitor_count',
-            }
-        )
-
-        responseBody = json.dumps({"count":int(dynamodbResponse['Item']['visitors'])})
-
-    apiResponse = {
-        "isBase64Encoded": False,
-        "statusCode": 200,
-        'headers': {
-            'Access-Control-Allow-Headers': 'Content-Type',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'
+    # Initialize DynamoDB client
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table('VisitorCount')
+    
+    # Increment the visitor count
+    response = table.update_item(
+        Key={
+            'id': 'count'
         },
-        "body": responseBody
+        UpdateExpression='SET visitor_count = visitor_count + :inc',
+        ExpressionAttributeValues={
+            ':inc': 1
+        },
+        ReturnValues='UPDATED_NEW'
+    )
+    
+    # Fetch the updated count and convert Decimal to int
+    new_count = int(response['Attributes']['visitor_count'])
+    
+    return {
+        'statusCode': 200,
+        'headers': {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+        },
+        'body': json.dumps({'visitor_count': new_count})
     }
-
-    return apiResponse
